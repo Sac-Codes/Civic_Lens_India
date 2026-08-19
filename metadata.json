@@ -1,0 +1,7 @@
+{
+  "name": "CivicLens AI",
+  "description": "Transforming Citizen Complaints into Smart City Intelligence with AI Computer Vision, GIS mapping, and Command Center operations.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
