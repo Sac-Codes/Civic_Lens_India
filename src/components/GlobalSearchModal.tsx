@@ -11,8 +11,7 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
-import { Incident, Ward, Department, Officer } from '../types';
-import { INITIAL_WARDS, INITIAL_DEPARTMENTS, INITIAL_OFFICERS } from '../data/mockData';
+import { Incident } from '../types';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -47,14 +46,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     (i) => i.id.toLowerCase().includes(q) || i.title.toLowerCase().includes(q) || i.address.toLowerCase().includes(q) || i.category.toLowerCase().includes(q)
   ).slice(0, 5) : [];
 
-  const matchingWards = q ? INITIAL_WARDS.filter(
-    (w) => w.name.toLowerCase().includes(q) || `ward ${w.number}`.includes(q)
-  ).slice(0, 3) : [];
-
-  const matchingOfficers = q ? INITIAL_OFFICERS.filter(
-    (o) => o.name.toLowerCase().includes(q) || o.department.toLowerCase().includes(q)
-  ).slice(0, 3) : [];
-
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-start justify-center pt-20 p-4">
       <div className="relative w-full max-w-xl glass-panel-glow rounded-3xl border border-blue-500/40 shadow-2xl p-4 space-y-4">
@@ -85,7 +76,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           {!q && (
             <div className="p-4 text-center text-slate-400 space-y-2">
               <Sparkles className="w-6 h-6 text-cyan-400 mx-auto" />
-              <p>Search across 110+ verified municipal complaints, 12 wards, and 8 department divisions.</p>
+              <p>Search the incident records available to your account.</p>
             </div>
           )}
 
@@ -117,61 +108,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
             </div>
           )}
 
-          {/* Ward Matches */}
-          {matchingWards.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Wards ({matchingWards.length})
-              </span>
-              {matchingWards.map((ward) => (
-                <div
-                  key={ward.id}
-                  onClick={() => {
-                    onNavigateTab('heatmap');
-                    onClose();
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/50 flex items-center justify-between cursor-pointer transition"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
-                    <div>
-                      <span className="font-semibold text-white block">Ward {ward.number}: {ward.name}</span>
-                      <span className="text-[10px] text-slate-400">Risk Score: {ward.riskScore}% • Pop: {(ward.population / 1000).toFixed(0)}k</span>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Officer Matches */}
-          {matchingOfficers.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                Officers ({matchingOfficers.length})
-              </span>
-              {matchingOfficers.map((off) => (
-                <div
-                  key={off.id}
-                  onClick={() => {
-                    onNavigateTab('officer');
-                    onClose();
-                  }}
-                  className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-blue-500/50 flex items-center justify-between cursor-pointer transition"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <UserCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <div>
-                      <span className="font-semibold text-white block">{off.name}</span>
-                      <span className="text-[10px] text-slate-400">{off.role} • {off.department}</span>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-slate-500" />
-                </div>
-              ))}
-            </div>
-          )}
+          {q && matchingIncidents.length === 0 && <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">No matching incidents found.</div>}
 
         </div>
 

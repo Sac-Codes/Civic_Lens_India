@@ -2,18 +2,28 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
     function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isAdmin() { return signedIn() && (request.auth.token.admin == true || request.auth.token.role == 'admin'); }
+    function hasRole(role) { return signedIn() && request.auth.token.role == role; }
+    function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function canReadIncident(incidentId) {
+      let incident = firestore.get(/databases/(default)/documents/incidents/$(incidentId)).data;
+      return isAdmin()
+        || incident.reportedBy == request.auth.uid
+        || (hasRole('officer') && incident.assignedOfficerId == request.auth.uid)
+        || (hasRole('department_head') && incident.department == request.auth.token.department);
+    }
 
     match /users/{uid}/profile/{fileName} {
-      allow read: if signedIn();
-      allow write: if (signedIn() && request.auth.uid == uid || isAdmin())
+      allow read: if owns(uid) || isAdmin();
+      allow write: if (owns(uid) || isAdmin())
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
 
     match /incidents/{incidentId}/{folder}/{fileName} {
-      allow read: if signedIn();
+      allow read: if canReadIncident(incidentId);
       allow write: if signedIn()
+        && request.resource.metadata.ownerId == request.auth.uid
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }

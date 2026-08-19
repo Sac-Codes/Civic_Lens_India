@@ -2,81 +2,37 @@ import React, { useState, useRef } from 'react';
 import { 
   Cpu, 
   Upload, 
-  Sparkles, 
   CheckCircle2, 
   AlertTriangle, 
   Eye, 
   Layers, 
-  Zap, 
   Clock, 
   DollarSign, 
   Wrench, 
   Building2, 
   RefreshCw, 
-  Sliders,
-  Maximize2,
-  ShieldCheck,
   ArrowRight
 } from 'lucide-react';
-import { PRESET_VISION_SAMPLES } from '../data/mockData';
 import { runVisionScan, VisionScanResult } from '../services/aiService';
 import { Incident } from '../types';
 
 interface AIVisionCenterProps {
-  onIncidentCreatedFromVision: (incidentData: Partial<Incident>) => void;
   onOpenReportModalWithData: (data: any) => void;
 }
 
 export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
-  onIncidentCreatedFromVision,
   onOpenReportModalWithData
 }) => {
-  const [selectedPreset, setSelectedPreset] = useState(PRESET_VISION_SAMPLES[0]);
-  const [currentImage, setCurrentImage] = useState<string>(PRESET_VISION_SAMPLES[0].imageUrl);
-  const [isCustomImage, setIsCustomImage] = useState(false);
+  const [currentImage, setCurrentImage] = useState<string>('');
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<VisionScanResult>({
-    detectedObjects: PRESET_VISION_SAMPLES[0].detectedObjects,
-    category: PRESET_VISION_SAMPLES[0].category,
-    department: PRESET_VISION_SAMPLES[0].department,
-    severityScore: PRESET_VISION_SAMPLES[0].severityScore,
-    severityLevel: 'Critical',
-    priorityScore: PRESET_VISION_SAMPLES[0].priorityScore,
-    priorityLevel: 'Immediate Action',
-    estimatedCost: PRESET_VISION_SAMPLES[0].estimatedCost,
-    estimatedResolutionTime: PRESET_VISION_SAMPLES[0].estimatedResolutionTime,
-    recommendedMaterials: PRESET_VISION_SAMPLES[0].recommendedMaterials,
-    safetyRiskLevel: PRESET_VISION_SAMPLES[0].safetyRisk,
-    summary: PRESET_VISION_SAMPLES[0].description
-  });
+  const [scanResult, setScanResult] = useState<VisionScanResult | null>(null);
 
-  const [activeModel, setActiveModel] = useState<'gemini-3.7' | 'yolov11-urban'>('gemini-3.7');
   const [showBoxes, setShowBoxes] = useState(true);
   const [hoveredBoxIdx, setHoveredBoxIdx] = useState<number | null>(null);
   const [sliderPosition, setSliderPosition] = useState(50);
   const [viewMode, setViewMode] = useState<'detection' | 'before-after'>('detection');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSelectPreset = (sample: typeof PRESET_VISION_SAMPLES[0]) => {
-    setSelectedPreset(sample);
-    setCurrentImage(sample.imageUrl);
-    setIsCustomImage(false);
-    setScanResult({
-      detectedObjects: sample.detectedObjects,
-      category: sample.category,
-      department: sample.department,
-      severityScore: sample.severityScore,
-      severityLevel: sample.severityScore > 85 ? 'Critical' : 'High',
-      priorityScore: sample.priorityScore,
-      priorityLevel: sample.priorityScore > 90 ? 'Immediate Action' : 'High',
-      estimatedCost: sample.estimatedCost,
-      estimatedResolutionTime: sample.estimatedResolutionTime,
-      recommendedMaterials: sample.recommendedMaterials,
-      safetyRiskLevel: sample.safetyRisk,
-      summary: sample.description
-    });
-  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -86,7 +42,6 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
     reader.onload = async () => {
       const base64 = reader.result as string;
       setCurrentImage(base64);
-      setIsCustomImage(true);
       triggerScan(base64);
     };
     reader.readAsDataURL(file);
@@ -95,7 +50,7 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
   const triggerScan = async (imgData = currentImage) => {
     setIsScanning(true);
     try {
-      const result = await runVisionScan(imgData, selectedPreset.category);
+      const result = await runVisionScan(imgData);
       setScanResult(result);
     } catch (e) {
       console.error('Scan error', e);
@@ -128,45 +83,20 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
         <div>
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 font-mono">
-              ENGINE v2.6
+              AI-assisted review
             </span>
-            <span className="text-xs text-slate-400">Sub-second Multimodal Inference</span>
+            <span className="text-xs text-slate-400">Configured AI service</span>
           </div>
           <h1 className="text-3xl font-extrabold text-white mt-1 font-heading">
             AI Computer Vision Studio
           </h1>
           <p className="text-sm text-slate-400 mt-1">
-            Real-time urban defect recognition, bounding box localization, and severity index estimation.
+            Upload a civic issue photo to receive an AI-assisted category and severity review before reporting it.
           </p>
         </div>
 
-        {/* Model Selector & Action Bar */}
+        {/* Upload action */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-800">
-            <button
-              onClick={() => setActiveModel('gemini-3.7')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${
-                activeModel === 'gemini-3.7'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Gemini 3.7 Flash</span>
-            </button>
-            <button
-              onClick={() => setActiveModel('yolov11-urban')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition ${
-                activeModel === 'yolov11-urban'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Cpu className="w-3.5 h-3.5" />
-              <span>YOLOv11-Urban</span>
-            </button>
-          </div>
-
           <button
             onClick={() => fileInputRef.current?.click()}
             className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-lg shadow-blue-500/20 flex items-center space-x-2 transition"
@@ -184,38 +114,7 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
         </div>
       </div>
 
-      {/* Preset Test Suite Selector */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-            Select Municipal Hazard Benchmark:
-          </span>
-          <span className="text-xs text-slate-500">6 Pre-calibrated Urban Scenarios</span>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {PRESET_VISION_SAMPLES.map((sample) => (
-            <button
-              key={sample.id}
-              onClick={() => handleSelectPreset(sample)}
-              className={`p-2 rounded-xl border text-left transition flex flex-col items-center group ${
-                selectedPreset.id === sample.id && !isCustomImage
-                  ? 'bg-blue-600/20 border-cyan-400/80 shadow-lg shadow-cyan-500/10'
-                  : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
-              }`}
-            >
-              <img
-                src={sample.imageUrl}
-                alt={sample.title}
-                className="w-full h-16 object-cover rounded-lg mb-2 group-hover:scale-105 transition"
-                referrerPolicy="no-referrer"
-              />
-              <span className="text-[11px] font-semibold text-slate-200 text-center truncate w-full">
-                {sample.category}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {!currentImage && <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 p-8 text-center text-sm text-slate-400">Upload a photo to begin AI analysis. AI output may contain errors; review it before submitting.</div>}
 
       {/* Main Vision Stage & Telemetry Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -269,7 +168,7 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
             {/* Viewport Canvas Stage */}
             <div className="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-black border border-slate-800 flex items-center justify-center">
               
-              {viewMode === 'detection' ? (
+              {currentImage && viewMode === 'detection' ? (
                 <>
                   <img
                     src={currentImage}
@@ -324,7 +223,7 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
                     );
                   })}
                 </>
-              ) : (
+              ) : currentImage ? (
                 /* Before / After Comparison Split View */
                 <div className="relative w-full h-full select-none">
                   {/* Resolved After Image */}
@@ -374,7 +273,7 @@ export const AIVisionCenter: React.FC<AIVisionCenterProps> = ({
                     className="absolute inset-0 opacity-0 cursor-ew-resize w-full h-full z-30"
                   />
                 </div>
-              )}
+              ) : <div className="p-8 text-center text-sm text-slate-500">Your uploaded image will appear here.</div>}
 
             </div>
 

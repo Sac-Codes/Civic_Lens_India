@@ -22,6 +22,7 @@ export interface IncidentTimelineEvent {
 
 export interface Incident {
   id: string;
+  reportedBy?: string;
   title: string;
   description: string;
   category: string;
@@ -143,12 +144,12 @@ export interface CityAnalytics {
   activeComplaints: number;
   criticalComplaints: number;
   inProgressComplaints: number;
-  cityHealthScore: number; // 0 - 100
-  aiTriageAccuracy: number; // %
-  avgResponseTimeHours: number;
+  cityHealthScore: number | null; // 0 - 100
+  aiTriageAccuracy: number | null; // %
+  avgResponseTimeHours: number | null;
   duplicateComplaintsPrevented: number;
-  estimatedBudgetSaved: string;
-  citizenSatisfactionRate: number; // %
+  estimatedBudgetSaved: string | null;
+  citizenSatisfactionRate: number | null; // %
 }
 
 export interface CitizenProfile {

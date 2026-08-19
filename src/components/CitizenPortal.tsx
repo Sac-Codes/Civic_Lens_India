@@ -18,7 +18,6 @@ import {
   MapPin
 } from 'lucide-react';
 import { CitizenProfile, Incident } from '../types';
-import { INITIAL_CITIZEN_PROFILE } from '../data/mockData';
 
 interface CitizenPortalProps {
   citizenProfile: CitizenProfile;
@@ -33,7 +32,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   onOpenReportModal,
   onSelectIncident
 }) => {
-  const [profile, setProfile] = useState<CitizenProfile>(citizenProfile);
+  const profile = citizenProfile;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -43,12 +42,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
           
           <div className="flex items-center space-x-4">
-            <img
-              src={profile.avatarUrl}
-              alt={profile.name}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-cyan-400/80 shadow-lg shadow-cyan-500/20"
-              referrerPolicy="no-referrer"
-            />
+            {profile.avatarUrl ? <img src={profile.avatarUrl} alt="" className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-cyan-400/80 shadow-lg shadow-cyan-500/20" referrerPolicy="no-referrer" /> : <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl border border-cyan-400/40 bg-cyan-500/10 text-xl font-bold text-cyan-300 sm:h-20 sm:w-20">{profile.name.charAt(0).toUpperCase()}</div>}
             <div>
               <div className="flex items-center space-x-2">
                 <h1 className="text-xl sm:text-2xl font-bold text-white font-heading">
@@ -60,64 +54,17 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               </div>
               <p className="text-xs text-slate-300 flex items-center space-x-2 mt-1">
                 <span>{profile.email}</span>
-                <span>•</span>
-                <span>{profile.phone}</span>
+                {profile.phone && <><span>•</span><span>{profile.phone}</span></>}
               </p>
               <p className="text-[11px] text-slate-400 flex items-center mt-1">
                 <MapPin className="w-3 h-3 text-blue-400 mr-1" />
-                <span>Primary Area: {profile.ward}</span>
+                {profile.ward ? <span>Primary Area: {profile.ward}</span> : <span>Primary area not set</span>}
               </p>
             </div>
           </div>
 
-          {/* Karma Points & Community Rank */}
-          <div className="flex items-center space-x-4 bg-slate-950/70 p-4 rounded-2xl border border-slate-800">
-            <div className="text-center pr-4 border-r border-slate-800">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Civic Karma</span>
-              <span className="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono flex items-center justify-center">
-                <Flame className="w-5 h-5 mr-1 text-amber-400" />
-                {profile.karmaPoints}
-              </span>
-            </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-950/70 p-4 text-xs text-slate-400">Your account information and submitted reports are shown here.</div>
 
-            <div className="text-center pl-2">
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Leaderboard</span>
-              <span className="text-xl sm:text-2xl font-extrabold text-cyan-400 font-mono">
-                #{profile.rankInWard} <span className="text-xs font-normal text-slate-400">in Ward</span>
-              </span>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Badges & Milestones */}
-      <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-bold text-white font-heading flex items-center space-x-2">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>Civic Achievements & Verified Badges</span>
-          </h3>
-          <span className="text-xs text-slate-400">{profile.badges.length} Earned</span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {profile.badges.map((badge, idx) => (
-            <div
-              key={idx}
-              className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-amber-500/40 transition flex items-center space-x-3 group"
-            >
-              <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg group-hover:scale-110 transition-transform">
-                🏆
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-white block truncate group-hover:text-amber-300">
-                  {badge}
-                </span>
-                <span className="text-[10px] text-emerald-400 font-medium">Verified Active</span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -143,6 +90,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         </div>
 
         <div className="space-y-3">
+          {myIncidents.length === 0 && <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center"><p className="text-sm font-semibold text-slate-200">No reports yet</p><p className="mt-1 text-xs text-slate-500">Your civic reports will appear here once you submit one.</p></div>}
           {myIncidents.slice(0, 5).map((inc) => (
             <div
               key={inc.id}

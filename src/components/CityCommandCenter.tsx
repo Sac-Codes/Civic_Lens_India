@@ -15,8 +15,7 @@ import {
   Sparkles,
   Zap
 } from 'lucide-react';
-import { Incident, Ward, Officer, CityAnalytics } from '../types';
-import { INITIAL_WARDS, INITIAL_OFFICERS } from '../data/mockData';
+import { Incident, CityAnalytics } from '../types';
 
 interface CityCommandCenterProps {
   incidents: Incident[];
@@ -42,7 +41,6 @@ export const CityCommandCenter: React.FC<CityCommandCenterProps> = ({
   }, []);
 
   const criticalIncidents = incidents.filter((i) => i.severity === 'Critical' && i.status !== 'Resolved');
-  const activeOfficers = INITIAL_OFFICERS.filter((o) => o.status === 'On Duty');
 
   const handleSendBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,7 +185,7 @@ export const CityCommandCenter: React.FC<CityCommandCenterProps> = ({
                 rows={2}
                 value={broadcastMessage}
                 onChange={(e) => setBroadcastMessage(e.target.value)}
-                placeholder="Type emergency alert (e.g. Flash flood warning in Ward 7 - divert storm response units)..."
+                placeholder="Write an alert for authorized field staff..."
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
               />
 
@@ -196,13 +194,13 @@ export const CityCommandCenter: React.FC<CityCommandCenterProps> = ({
                 className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/20 flex items-center justify-center space-x-2 transition"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Broadcast Priority Alert to 18 Mobile Officers</span>
+                <span>Broadcast Priority Alert</span>
               </button>
 
               {broadcastSent && (
                 <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-2 animate-fade-in">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>Transmitted to 18 Field Units across all active channels!</span>
+                  <span>Alert queued for authorized field staff.</span>
                 </div>
               )}
             </form>
@@ -212,24 +210,12 @@ export const CityCommandCenter: React.FC<CityCommandCenterProps> = ({
           <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-bold text-white font-heading">
-                Active Field Roster ({activeOfficers.length})
+                Active Field Roster
               </h3>
               <span className="text-[10px] font-mono text-emerald-400">100% ONLINE</span>
             </div>
 
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {activeOfficers.map((off) => (
-                <div key={off.id} className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="font-bold text-white">{off.name}</span>
-                    <span className="text-[10px] text-slate-400 block">{off.role} • {off.assignedWard}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-cyan-300 border border-cyan-500/20">
-                    {off.activeAssignedCases} Cases Active
-                  </span>
-                </div>
-              ))}
-            </div>
+            <div className="rounded-xl border border-dashed border-slate-700 p-6 text-center text-xs text-slate-500">No field roster data is available yet.</div>
           </div>
 
         </div>

@@ -16,6 +16,7 @@ export interface AuthProfile {
   name: string;
   email: string;
   role: UserRole;
+  department?: string;
   isActive: boolean;
 }
 

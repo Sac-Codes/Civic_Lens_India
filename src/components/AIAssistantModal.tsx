@@ -43,7 +43,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     {
       id: 'msg-init',
       sender: 'assistant',
-      text: `Hello! I'm **Aria**, your AI Smart City Copilot powered by Gemini. Ask me about ward hotspots, department SLA response rates, budget efficiency, or emergency dispatch recommendations.`,
+      text: `Hello! I'm Aria, CivicLens's AI assistant. Ask about the incident records available to your account. AI responses may contain errors, so verify important decisions.`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -71,9 +71,9 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     try {
       const reply = await askAIAssistant(textToSend, {
         totalComplaints: analytics.totalComplaints,
-        cityHealthScore: analytics.cityHealthScore,
-        aiTriageAccuracy: analytics.aiTriageAccuracy,
-        sampleIncidentCount: incidents.length
+        activeComplaints: analytics.activeComplaints,
+        resolvedComplaints: analytics.resolvedComplaints,
+        incidentCount: incidents.length
       });
 
       const assistantMsg: ChatMessage = {
@@ -84,18 +84,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (e) {
-      console.error(e);
+      setMessages((prev) => [...prev, { id: `error-${Date.now()}`, sender: 'assistant', text: e instanceof Error ? e.message : 'The AI assistant is unavailable. Please try again later.', timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const samplePrompts = [
-    'Which ward has the most critical potholes?',
-    'What is our monsoon drainage flood risk?',
-    'How much budget did automated duplicate triage save?',
-    'Provide an executive summary of department SLAs.'
-  ];
+  const suggestedPrompts = ['Summarize my open incidents', 'Which categories are most common?', 'What should I review next?'];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -113,10 +108,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               <h2 className="text-base font-bold text-white flex items-center space-x-2 font-heading">
                 <span>Aria • Smart City Copilot</span>
                 <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                  GEMINI 3.7
+                  AI assistant
                 </span>
               </h2>
-              <p className="text-xs text-slate-400">Autonomous municipal reasoning & urban intelligence</p>
+              <p className="text-xs text-slate-400">AI-generated guidance from your available records</p>
             </div>
           </div>
 
@@ -176,7 +171,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
 
         {/* Suggested Prompts */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px] shrink-0 scrollbar-none">
-          {samplePrompts.map((p, i) => (
+          {suggestedPrompts.map((p, i) => (
             <button
               key={i}
               onClick={() => handleSendMessage(p)}

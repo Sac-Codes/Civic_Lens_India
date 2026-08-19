@@ -2,27 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isAdmin() { return signedIn() && (request.auth.token.admin == true || request.auth.token.role == 'admin'); }
+    function hasRole(role) { return signedIn() && request.auth.token.role == role; }
+    function isDepartmentHead() { return hasRole('department_head') && request.auth.token.department != null; }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
 
     match /users/{uid} {
       allow read: if owns(uid) || isAdmin();
       allow create: if owns(uid) && request.resource.data.role == 'citizen';
-      allow update: if isAdmin() || (owns(uid) && request.resource.data.role == resource.data.role);
+      allow update: if isAdmin() || (owns(uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone', 'avatarUrl', 'updatedAt']));
       allow delete: if isAdmin();
     }
 
     match /incidents/{incidentId} {
       allow create: if signedIn() && request.resource.data.reportedBy == request.auth.uid;
-      allow read: if signedIn() && (resource.data.reportedBy == request.auth.uid || isAdmin());
-      allow update: if isAdmin() || (signedIn() && resource.data.reportedBy == request.auth.uid && request.resource.data.reportedBy == resource.data.reportedBy);
+      allow read: if signedIn() && (
+        resource.data.reportedBy == request.auth.uid ||
+        isAdmin() ||
+        (hasRole('officer') && resource.data.assignedOfficerId == request.auth.uid) ||
+        (isDepartmentHead() && resource.data.department == request.auth.token.department)
+      );
+      allow update: if isAdmin() ||
+        (hasRole('officer') && resource.data.assignedOfficerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolutionNotes', 'repairImageUrl', 'updatedAt', 'timeline'])) ||
+        (isDepartmentHead() && resource.data.department == request.auth.token.department && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assignedOfficerId', 'assignedOfficerName', 'assignedOfficerPhone', 'updatedAt', 'timeline', 'priority', 'department'])) ||
+        (resource.data.reportedBy == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['citizenFeedback', 'citizenSatisfactionRating', 'duplicateCount', 'duplicateIncidentIds', 'updatedAt', 'timeline']));
       allow delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {
       allow read: if signedIn() && resource.data.recipientId == request.auth.uid;
-      allow update: if signedIn() && resource.data.recipientId == request.auth.uid;
-      allow create, delete: if isAdmin();
+      allow update: if signedIn() && resource.data.recipientId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'isRead']);
+      allow create: if isAdmin() || (signedIn() && request.resource.data.recipientId == request.auth.uid);
+      allow delete: if isAdmin() || (signedIn() && resource.data.recipientId == request.auth.uid);
     }
 
     match /{document=**} { allow read, write: if isAdmin(); }

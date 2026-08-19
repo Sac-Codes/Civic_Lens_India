@@ -20,7 +20,6 @@ import {
   ThumbsUp
 } from 'lucide-react';
 import { Incident, Officer, SeverityLevel, IncidentStatus } from '../types';
-import { INITIAL_OFFICERS, INITIAL_DEPARTMENTS, INITIAL_WARDS } from '../data/mockData';
 import { exportIncidentsToCsv } from '../services/storageService';
 
 interface IncidentManagementProps {
@@ -251,9 +250,7 @@ export const IncidentManagement: React.FC<IncidentManagementProps> = ({
               className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 focus:ring-1 focus:ring-blue-500 focus:outline-none"
             >
               <option value="all">All Departments</option>
-              {INITIAL_DEPARTMENTS.map((d) => (
-                <option key={d.id} value={d.name}>{d.name}</option>
-              ))}
+              {Array.from(new Set(incidents.map((incident) => incident.department).filter(Boolean))).map((department) => <option key={department} value={department}>{department}</option>)}
             </select>
           </div>
 
@@ -313,6 +310,7 @@ export const IncidentManagement: React.FC<IncidentManagementProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60">
+              {filtered.length === 0 && <tr><td colSpan={8} className="p-12 text-center"><p className="text-sm font-semibold text-slate-200">No incidents found</p><p className="mt-1 text-xs text-slate-500">Reports matching your filters will appear here.</p></td></tr>}
               {filtered.slice(0, 30).map((inc) => (
                 <tr
                   key={inc.id}
@@ -516,17 +514,12 @@ export const IncidentManagement: React.FC<IncidentManagementProps> = ({
                       id="officer-select-assign"
                       className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:outline-none"
                     >
-                      {INITIAL_OFFICERS.map((off) => (
-                        <option key={off.id} value={off.id}>
-                          {off.name} ({off.role} • {off.assignedWard})
-                        </option>
-                      ))}
+                      <option value="">No officer records available</option>
                     </select>
                     <button
                       onClick={() => {
                         const sel = document.getElementById('officer-select-assign') as HTMLSelectElement;
-                        const off = INITIAL_OFFICERS.find((o) => o.id === sel?.value) || INITIAL_OFFICERS[0];
-                        handleAssignOfficer(activeModalIncident, off);
+                        if (!sel?.value) return;
                       }}
                       className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs transition"
                     >

@@ -217,7 +217,7 @@ export const CsvReportCenter: React.FC<CsvReportCenterProps> = ({
 
           <div className="text-right">
             <span className="text-xs text-slate-400 block print:text-black">Audit Status</span>
-            <span className="text-sm font-bold text-emerald-400 font-mono">VERIFIED OPTIMAL</span>
+            <span className="text-sm font-bold text-slate-400 font-mono">LIVE DATA</span>
           </div>
         </div>
 
@@ -231,21 +231,21 @@ export const CsvReportCenter: React.FC<CsvReportCenterProps> = ({
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 print:border-gray-300">
             <span className="text-slate-400 print:text-gray-600">Resolution Rate</span>
             <span className="text-2xl font-bold text-emerald-400 block mt-1 print:text-green-700">
-              {((analytics.resolvedComplaints / analytics.totalComplaints) * 100).toFixed(1)}%
+              {analytics.totalComplaints ? `${((analytics.resolvedComplaints / analytics.totalComplaints) * 100).toFixed(1)}%` : '—'}
             </span>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 print:border-gray-300">
             <span className="text-slate-400 print:text-gray-600">AI Triage Accuracy</span>
             <span className="text-2xl font-bold text-cyan-400 block mt-1 print:text-blue-700">
-              {analytics.aiTriageAccuracy}%
+              {analytics.aiTriageAccuracy === null ? '—' : `${analytics.aiTriageAccuracy}%`}
             </span>
           </div>
 
           <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 print:border-gray-300">
             <span className="text-slate-400 print:text-gray-600">Budget Saved via Triage</span>
             <span className="text-2xl font-bold text-purple-400 block mt-1 print:text-purple-700">
-              {analytics.estimatedBudgetSaved}
+              {analytics.estimatedBudgetSaved ?? '—'}
             </span>
           </div>
         </div>
@@ -256,10 +256,10 @@ export const CsvReportCenter: React.FC<CsvReportCenterProps> = ({
             Operational Summary & Recommendations:
           </h4>
           <p>
-            During the current fiscal window, CivicLens AI successfully processed {analytics.totalComplaints} citizen reports across 12 metropolitan wards. Autonomous Computer Vision triage prevented {analytics.duplicateComplaintsPrevented} redundant crew dispatches, generating significant operational cost savings of {analytics.estimatedBudgetSaved}.
+            The report contains {analytics.totalComplaints} incident records available to the current account. Duplicate-report count is derived from incident records; financial savings and AI accuracy are shown only when provided by the backend.
           </p>
           <p>
-            Key infrastructure maintenance priority should remain focused on Ward 4 and Ward 7 drainage conduits ahead of peak seasonal rainfall. All 8 municipal divisions are currently exceeding their 85% SLA benchmark targets.
+            Department priorities and service-level recommendations require configured department and historical analytics data.
           </p>
         </div>
 

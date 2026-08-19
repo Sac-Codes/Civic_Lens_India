@@ -117,7 +117,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">City Health Score</p>
               <div className="mt-1 flex items-baseline space-x-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold text-white metric-number">
-                  {analytics.cityHealthScore}
+                  {analytics.cityHealthScore ?? '—'}
                 </span>
                 <span className="text-xs font-semibold text-emerald-400">/ 100</span>
               </div>
@@ -131,23 +131,23 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">AI Accuracy</p>
               <div className="mt-1 flex items-baseline space-x-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold text-cyan-400 metric-number">
-                  {analytics.aiTriageAccuracy}%
+                  {analytics.aiTriageAccuracy === null ? '—' : `${analytics.aiTriageAccuracy}%`}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">YOLOv11 & Gemini</p>
+                <p className="text-[10px] text-slate-400 mt-1">AI-assisted review</p>
             </div>
 
             <div className="glass-panel p-4 rounded-2xl border border-blue-500/20">
               <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Avg Resolution</p>
               <div className="mt-1 flex items-baseline space-x-1.5">
                 <span className="text-2xl sm:text-3xl font-extrabold text-white metric-number">
-                  {analytics.avgResponseTimeHours}
+                  {analytics.avgResponseTimeHours ?? '—'}
                 </span>
-                <span className="text-xs font-semibold text-slate-400">Hours</span>
+                <span className="text-xs font-semibold text-slate-400">{analytics.avgResponseTimeHours === null ? '' : 'Hours'}</span>
               </div>
               <p className="text-[10px] text-emerald-400 mt-1 flex items-center">
                 <Clock className="w-3 h-3 mr-1" />
-                -38% vs Manual
+                Based on resolved reports
               </p>
             </div>
 
@@ -158,7 +158,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
                   {analytics.totalComplaints}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Across 12 Wards</p>
+                <p className="text-[10px] text-slate-400 mt-1">Available to your account</p>
             </div>
 
             <div className="glass-panel p-4 rounded-2xl border border-blue-500/20">
@@ -170,7 +170,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               </div>
               <p className="text-[10px] text-emerald-400 mt-1 flex items-center">
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                92.5% Rate
+                Based on submitted reports
               </p>
             </div>
 
@@ -181,7 +181,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
                   {analytics.duplicateComplaintsPrevented}
                 </span>
               </div>
-              <p className="text-[10px] text-purple-300 mt-1">Saved {analytics.estimatedBudgetSaved}</p>
+                <p className="text-[10px] text-purple-300 mt-1">Derived from duplicate reports</p>
             </div>
           </div>
         </div>
@@ -200,7 +200,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 relative">
           {[
-            { step: '01', title: 'Citizen Intake', desc: 'Drag-and-drop image, voice note or live GPS coordinate.', icon: ShieldAlert, color: 'from-blue-500 to-indigo-500' },
+            { step: '01', title: 'Citizen Intake', desc: 'Add a description, photo, and location for the issue.', icon: ShieldAlert, color: 'from-blue-500 to-indigo-500' },
             { step: '02', title: 'AI Neural Scan', desc: 'Bounding box defect extraction, object counting & confidence scoring.', icon: Cpu, color: 'from-cyan-500 to-blue-500' },
             { step: '03', title: 'Duplicate Triage', desc: 'Spatial cluster matching merges repetitive complaints instantly.', icon: Layers, color: 'from-purple-500 to-pink-500' },
             { step: '04', title: 'Smart Dispatch', desc: 'Automated assignment to nearest ward officer with materials estimation.', icon: Users, color: 'from-amber-500 to-orange-500' },
@@ -260,11 +260,11 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transform group-hover:translate-x-1 transition" />
             </h3>
             <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              YOLOv11 & Gemini multimodal vision scanner detects potholes, garbage piles, burst mains, and electrical defects with laser-scan bounding box extraction.
+              Upload a civic issue photo for AI-assisted classification and severity review before submitting a report.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">Sub-second inference</span>
-              <span className="text-cyan-400 font-semibold">Test Presets Ready →</span>
+              <span className="font-mono">Review before submission</span>
+              <span className="text-cyan-400 font-semibold">Open AI review →</span>
             </div>
           </div>
 
@@ -281,10 +281,10 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transform group-hover:translate-x-1 transition" />
             </h3>
             <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              Interactive Leaflet GIS map with 12 Ward polygon layers, high-density incident clustering, satellite view, and real-time radius triage.
+              View incident locations available to your account on an interactive map.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">110+ Live Seed Markers</span>
+              <span className="font-mono">Live incident records</span>
               <span className="text-indigo-400 font-semibold">Explore Map →</span>
             </div>
           </div>
@@ -302,10 +302,10 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               <ArrowRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transform group-hover:translate-x-1 transition" />
             </h3>
             <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-              Department resolution velocity, Ward Health Scores, budget burn rates, 24-hr incident flux curves, and officer efficiency tracking.
+              Review report counts, open work, resolved cases, and category distribution from live records.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">8 Municipal Depts</span>
+              <span className="font-mono">Live account scope</span>
               <span className="text-emerald-400 font-semibold">View Analytics →</span>
             </div>
           </div>
@@ -326,8 +326,8 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               Predicts monsoon flood choke points, weekend garbage accumulation hotspots, and road fatigue before hazards disrupt citizens.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">Cost-avoidance modeling</span>
-              <span className="text-purple-400 font-semibold">See Forecasts →</span>
+              <span className="font-mono">Historical data required</span>
+              <span className="text-purple-400 font-semibold">View availability →</span>
             </div>
           </div>
 
@@ -347,7 +347,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               Executive command room with real-time ward telemetry, emergency SOS broadcaster, officer dispatch modal, and tamper-evident audit logs.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">Role-Protected Access</span>
+              <span className="font-mono">Authorized access</span>
               <span className="text-rose-400 font-semibold">Open Command →</span>
             </div>
           </div>
@@ -368,7 +368,7 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               Full two-way CSV import/export capabilities, bulk incident batch processing, and formatted Executive PDF/Print reports.
             </p>
             <div className="mt-4 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
-              <span className="font-mono">17 Schema Fields</span>
+              <span className="font-mono">Live report records</span>
               <span className="text-amber-400 font-semibold">Manage Data →</span>
             </div>
           </div>
@@ -390,12 +390,13 @@ export const HeroLanding: React.FC<HeroLandingProps> = ({
               onClick={() => onNavigate('incidents')}
               className="text-xs text-blue-400 hover:text-blue-300 font-semibold flex items-center space-x-1"
             >
-              <span>View All 110+ Incidents</span>
+              <span>View available incidents</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recentIncidents.length === 0 && <div className="col-span-full rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">No incidents reported yet.</div>}
             {recentIncidents.slice(0, 3).map((inc) => (
               <div
                 key={inc.id}

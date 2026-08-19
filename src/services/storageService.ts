@@ -1,66 +1,8 @@
-import { Incident, Department, Officer, Ward, CityAnalytics, CitizenProfile, ActivityNotification, PredictiveHotspot } from '../types';
-import { ALL_MOCK_INCIDENTS, INITIAL_DEPARTMENTS, INITIAL_OFFICERS, INITIAL_WARDS, INITIAL_ANALYTICS, INITIAL_CITIZEN_PROFILE, INITIAL_NOTIFICATIONS, PREDICTIVE_HOTSPOTS } from '../data/mockData';
+import { Incident } from '../types';
 
 const INCIDENTS_KEY = 'civiclens_incidents_v2';
 const CITIZEN_KEY = 'civiclens_citizen_profile_v2';
 const NOTIFICATIONS_KEY = 'civiclens_notifications_v2';
-
-export function getStoredIncidents(): Incident[] {
-  try {
-    const raw = localStorage.getItem(INCIDENTS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch (e) {
-    console.error('Failed to read incidents from localStorage', e);
-  }
-  return ALL_MOCK_INCIDENTS;
-}
-
-export function saveStoredIncidents(incidents: Incident[]): void {
-  try {
-    localStorage.setItem(INCIDENTS_KEY, JSON.stringify(incidents));
-  } catch (e) {
-    console.error('Failed to save incidents to localStorage', e);
-  }
-}
-
-export function getStoredCitizenProfile(): CitizenProfile {
-  try {
-    const raw = localStorage.getItem(CITIZEN_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to read citizen profile', e);
-  }
-  return INITIAL_CITIZEN_PROFILE;
-}
-
-export function saveStoredCitizenProfile(profile: CitizenProfile): void {
-  try {
-    localStorage.setItem(CITIZEN_KEY, JSON.stringify(profile));
-  } catch (e) {
-    console.error('Failed to save citizen profile', e);
-  }
-}
-
-export function getStoredNotifications(): ActivityNotification[] {
-  try {
-    const raw = localStorage.getItem(NOTIFICATIONS_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.error('Failed to read notifications', e);
-  }
-  return INITIAL_NOTIFICATIONS;
-}
-
-export function saveStoredNotifications(notifs: ActivityNotification[]): void {
-  try {
-    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifs));
-  } catch (e) {
-    console.error('Failed to save notifications', e);
-  }
-}
 
 // Distance Calculation (Haversine formula in meters)
 export function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

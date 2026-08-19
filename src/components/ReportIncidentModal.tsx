@@ -3,8 +3,6 @@ import confetti from 'canvas-confetti';
 import { 
   X, 
   Upload, 
-  Mic, 
-  MicOff, 
   MapPin, 
   Sparkles, 
   CheckCircle2, 
@@ -19,9 +17,9 @@ import {
   ThumbsUp
 } from 'lucide-react';
 import { Incident, UserRole } from '../types';
-import { PRESET_VISION_SAMPLES, INITIAL_WARDS, INITIAL_DEPARTMENTS } from '../data/mockData';
 import { runVisionScan, VisionScanResult } from '../services/aiService';
 import { findPotentialDuplicate } from '../services/storageService';
+import { uploadIncidentImage } from '../services/firebase/media';
 
 interface ReportIncidentModalProps {
   isOpen: boolean;
@@ -29,6 +27,7 @@ interface ReportIncidentModalProps {
   onIncidentCreated: (newIncident: Incident) => void;
   initialData?: Partial<Incident>;
   allExistingIncidents: Incident[];
+  reporter: { id: string; name: string; phone?: string };
 }
 
 export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
@@ -36,29 +35,29 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
   onClose,
   onIncidentCreated,
   initialData,
-  allExistingIncidents
+  allExistingIncidents,
+  reporter
 }) => {
   if (!isOpen) return null;
 
   const [title, setTitle] = useState(initialData?.title || '');
   const [description, setDescription] = useState(initialData?.description || '');
   const [category, setCategory] = useState(initialData?.category || 'Potholes & Road Cracks');
-  const [department, setDepartment] = useState(initialData?.department || 'Roads & Infrastructure');
-  const [ward, setWard] = useState(initialData?.ward || 'Ward 2 - Market Square');
-  const [address, setAddress] = useState(initialData?.address || '742 Market St, Market Square');
-  const [latitude, setLatitude] = useState(initialData?.latitude || 37.7812);
-  const [longitude, setLongitude] = useState(initialData?.longitude || -122.4101);
-  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || PRESET_VISION_SAMPLES[0].imageUrl);
-  const [citizenName, setCitizenName] = useState('Alexandre Mercer');
-  const [citizenPhone, setCitizenPhone] = useState('+1 (555) 782-9901');
+  const [department, setDepartment] = useState(initialData?.department || '');
+  const [ward, setWard] = useState(initialData?.ward || '');
+  const [address, setAddress] = useState(initialData?.address || '');
+  const [latitude, setLatitude] = useState(initialData?.latitude || 0);
+  const [longitude, setLongitude] = useState(initialData?.longitude || 0);
+  const [imageUrl, setImageUrl] = useState(initialData?.imageUrl || '');
+  const [citizenName] = useState(reporter.name);
+  const [citizenPhone] = useState(reporter.phone || '');
 
   // AI & Media States
   const [isScanning, setIsScanning] = useState(false);
   const [aiScanResult, setAiScanResult] = useState<VisionScanResult | null>(null);
-  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
-  const [voiceRecordedText, setVoiceRecordedText] = useState('');
   const [duplicateWarning, setDuplicateWarning] = useState<Incident | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -98,21 +97,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     }
   };
 
-  // Voice recording simulation
-  const toggleVoiceRecording = () => {
-    if (!isRecordingVoice) {
-      setIsRecordingVoice(true);
-      setTimeout(() => {
-        setIsRecordingVoice(false);
-        const transcript = 'Severe asphalt depression and broken pavement observed near intersection. Pedestrians having trouble crossing and high risk of motorcycle accident.';
-        setVoiceRecordedText(transcript);
-        setDescription((prev) => (prev ? `${prev} \n\n[Voice Note Transcribed]: ${transcript}` : transcript));
-      }, 3500);
-    } else {
-      setIsRecordingVoice(false);
-    }
-  };
-
   const handleMergeDuplicate = () => {
     if (!duplicateWarning) return;
     
@@ -143,38 +127,44 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
     onClose();
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!imageUrl || !aiScanResult) {
+      setSubmitError('Upload a photo and review the AI analysis before submitting this report.');
+      return;
+    }
     setIsSubmitting(true);
+    setSubmitError('');
 
-    const now = new Date().toISOString();
-    const newInc: Incident = {
-      id: `INC-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+    try {
+      const now = new Date().toISOString();
+      const incidentId = `INC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const storedImageUrl = imageUrl.startsWith('data:image/') ? await uploadIncidentImage(incidentId, imageUrl, reporter.id) : imageUrl;
+      const newInc: Incident = {
+      id: incidentId,
       title: title || `${category} - ${address}`,
       description: description || 'Reported civic issue via CivicLens intake platform.',
       category,
       department,
-      severity: aiScanResult?.severityLevel || 'High',
-      severityScore: aiScanResult?.severityScore || 82,
-      priority: aiScanResult?.priorityLevel || 'High',
-      priorityScore: aiScanResult?.priorityScore || 85,
-      status: 'Assigned',
+      severity: aiScanResult.severityLevel,
+      severityScore: aiScanResult.severityScore,
+      priority: aiScanResult.priorityLevel,
+      priorityScore: aiScanResult.priorityScore,
+      status: 'Pending',
       latitude,
       longitude,
       address,
       ward,
       area: `${ward} Central`,
-      imageUrl,
-      aiConfidence: aiScanResult ? 0.96 : 0.92,
-      detectedObjects: aiScanResult?.detectedObjects || [
-        { label: category, confidence: 0.95, bbox: [20, 20, 80, 80], severity: 'High' }
-      ],
-      estimatedCost: aiScanResult?.estimatedCost || '$450 - $700',
-      estimatedResolutionTime: aiScanResult?.estimatedResolutionTime || '12 Hours',
-      recommendedMaterials: aiScanResult?.recommendedMaterials || ['Standard Municipal Material Set'],
-      safetyRiskLevel: aiScanResult?.safetyRiskLevel || 'Standard municipal safety risk.',
-      aiSummary: aiScanResult?.summary || 'AI successfully triaged and assigned to field division.',
-      citizenId: `cit-${Math.floor(1000 + Math.random() * 9000)}`,
+      imageUrl: storedImageUrl,
+      aiConfidence: aiScanResult.detectedObjects[0]?.confidence ?? 0,
+      detectedObjects: aiScanResult.detectedObjects,
+      estimatedCost: aiScanResult.estimatedCost,
+      estimatedResolutionTime: aiScanResult.estimatedResolutionTime,
+      recommendedMaterials: aiScanResult.recommendedMaterials,
+      safetyRiskLevel: aiScanResult.safetyRiskLevel,
+      aiSummary: aiScanResult.summary,
+      citizenId: reporter.id,
       citizenName,
       citizenPhone,
       createdAt: now,
@@ -197,21 +187,18 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
           description: `AI Vision classified as ${category} and routed to ${department}.`,
           actor: 'CivicLens AI',
           role: 'AI System',
-          statusChangedTo: 'Assigned'
+          statusChangedTo: 'Pending'
         }
       ]
-    };
-
-    setTimeout(() => {
+      };
       setIsSubmitting(false);
-      confetti({
-        particleCount: 100,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       onIncidentCreated(newInc);
       onClose();
-    }, 800);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'We could not save this report. Please try again.');
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -280,12 +267,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 </label>
                 
                 <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-black border border-slate-800 group">
-                  <img
-                    src={imageUrl}
-                    alt="Defect Preview"
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                  {imageUrl ? <img src={imageUrl} alt="Defect Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="p-8 text-center text-sm text-slate-500">No photo selected. Upload an image to request AI analysis.</div>}
 
                   {/* Scan overlay */}
                   {isScanning && (
@@ -322,77 +304,6 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                 />
               </div>
 
-              {/* Sample Benchmarks Quick Picker */}
-              <div>
-                <span className="text-[11px] text-slate-400 font-medium block mb-1.5">
-                  Or pick a test benchmark photo:
-                </span>
-                <div className="grid grid-cols-3 gap-2">
-                  {PRESET_VISION_SAMPLES.slice(0, 3).map((sample) => (
-                    <button
-                      key={sample.id}
-                      type="button"
-                      onClick={() => {
-                        setImageUrl(sample.imageUrl);
-                        setCategory(sample.category);
-                        setDepartment(sample.department);
-                      }}
-                      className="p-1.5 rounded-xl border border-slate-800 bg-slate-900/80 hover:border-blue-500/50 text-[10px] text-slate-300 truncate"
-                    >
-                      {sample.category.split('&')[0]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Voice Note Recording Section */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-300 flex items-center space-x-1.5">
-                    <Mic className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Voice Note Transcription (UI-Ready)</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={toggleVoiceRecording}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1 transition ${
-                      isRecordingVoice
-                        ? 'bg-rose-600 text-white animate-pulse'
-                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                    }`}
-                  >
-                    {isRecordingVoice ? (
-                      <>
-                        <MicOff className="w-3 h-3" />
-                        <span>Listening...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mic className="w-3 h-3" />
-                        <span>Record Voice Note</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {isRecordingVoice && (
-                  <div className="flex items-center justify-center space-x-1 py-2">
-                    {[40, 70, 30, 90, 60, 80, 45, 95, 60, 30].map((h, i) => (
-                      <span
-                        key={i}
-                        style={{ height: `${h}%` }}
-                        className="w-1 bg-cyan-400 rounded-full animate-pulse"
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {voiceRecordedText && (
-                  <p className="text-[11px] text-slate-400 bg-slate-950 p-2 rounded-lg border border-slate-800 italic">
-                    "{voiceRecordedText}"
-                  </p>
-                )}
-              </div>
             </div>
 
             {/* Right: Metadata & Form Inputs */}
@@ -436,9 +347,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   >
-                    {INITIAL_DEPARTMENTS.map((d) => (
-                      <option key={d.id} value={d.name}>{d.name}</option>
-                    ))}
+                    <option value="">To be assigned by the service team</option>
                   </select>
                 </div>
               </div>
@@ -451,11 +360,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
                     onChange={(e) => setWard(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
                   >
-                    {INITIAL_WARDS.map((w) => (
-                      <option key={w.id} value={`Ward ${w.number} - ${w.name}`}>
-                        Ward {w.number}: {w.name}
-                      </option>
-                    ))}
+                    <option value="">Ward not selected</option>
                   </select>
                 </div>
 
@@ -486,23 +391,12 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-slate-400 font-bold block mb-1">Citizen Name</label>
-                  <input
-                    type="text"
-                    value={citizenName}
-                    onChange={(e) => setCitizenName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                    required
-                  />
+                  <p className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-white">{citizenName}</p>
                 </div>
 
                 <div>
                   <label className="text-slate-400 font-bold block mb-1">Contact Phone</label>
-                  <input
-                    type="text"
-                    value={citizenPhone}
-                    onChange={(e) => setCitizenPhone(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                  />
+                  <p className="rounded-xl border border-slate-800 bg-slate-900 px-3 py-2 text-white">{citizenPhone || 'Not provided'}</p>
                 </div>
               </div>
 
@@ -526,6 +420,7 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
 
           {/* Modal Action Footer */}
           <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+            {submitError && <p role="alert" className="max-w-sm text-xs text-rose-300">{submitError}</p>}
             <button
               type="button"
               onClick={onClose}

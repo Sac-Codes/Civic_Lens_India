@@ -17,8 +17,7 @@ import {
   Navigation,
   Radio
 } from 'lucide-react';
-import { Incident, Ward, Department } from '../types';
-import { INITIAL_WARDS, INITIAL_DEPARTMENTS } from '../data/mockData';
+import { Incident } from '../types';
 
 interface LiveCityHeatmapProps {
   incidents: Incident[];
@@ -130,30 +129,7 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
     wardsLayer.clearLayers();
     heatmapLayer.clearLayers();
 
-    // 1. Render Ward Polygons
-    if (showWards) {
-      INITIAL_WARDS.forEach((ward) => {
-        const isMatch = selectedWard === 'all' || ward.name.toLowerCase().includes(selectedWard.toLowerCase());
-        const color = ward.riskScore > 70 ? '#ef4444' : ward.riskScore > 40 ? '#f59e0b' : '#3b82f6';
-        
-        const polygon = L.polygon(ward.bounds, {
-          color: color,
-          weight: isMatch ? 2 : 1,
-          opacity: isMatch ? 0.8 : 0.3,
-          fillColor: color,
-          fillOpacity: isMatch ? 0.12 : 0.04,
-        });
-
-        polygon.bindTooltip(`<strong>${ward.name}</strong><br/>Risk Score: ${ward.riskScore}/100<br/>Active: ${ward.activeComplaints}`, {
-          sticky: true,
-          className: 'glass-panel text-xs text-white p-2 rounded-lg border border-slate-700',
-        });
-
-        wardsLayer.addLayer(polygon);
-      });
-    }
-
-    // 2. Render Heatmap Density Circles
+    // Render incident density circles from live records.
     if (showHeatmap) {
       filteredIncidents.forEach((inc) => {
         const radius = inc.severity === 'Critical' ? 180 : inc.severity === 'High' ? 120 : 80;
@@ -169,7 +145,7 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
       });
     }
 
-    // 3. Render Incident Markers
+    // Render incident markers from live records.
     if (showMarkers) {
       filteredIncidents.forEach((inc) => {
         const color =
@@ -249,13 +225,6 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
 
   }, [filteredIncidents, showWards, showHeatmap, showMarkers, selectedWard]);
 
-  const handleCenterOnWard = (ward: Ward) => {
-    setSelectedWard(ward.name);
-    mapInstanceRef.current?.flyTo([ward.centerLat, ward.centerLng], 14.5, {
-      duration: 1.2,
-    });
-  };
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       
@@ -266,7 +235,7 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-cyan-400 border border-cyan-500/30">
               GIS SPATIAL TELEMETRY
             </span>
-            <span className="text-xs text-slate-400">12 Wards Synchronized</span>
+            <span className="text-xs text-slate-400">Live incident records</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white mt-1 font-heading">
             Live City GIS Heatmap & Ward Triage
@@ -341,11 +310,7 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
             className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
           >
             <option value="all">All Wards (Metropolis)</option>
-            {INITIAL_WARDS.map((w) => (
-              <option key={w.id} value={w.name}>
-                Ward {w.number}: {w.name}
-              </option>
-            ))}
+            <option value="">Ward filters become available when ward records are configured.</option>
           </select>
         </div>
 
@@ -378,11 +343,7 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
             className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 text-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
           >
             <option value="all">All Departments</option>
-            {INITIAL_DEPARTMENTS.map((d) => (
-              <option key={d.id} value={d.name}>
-                {d.name}
-              </option>
-            ))}
+            {Array.from(new Set(incidents.map((incident) => incident.department).filter(Boolean))).map((department) => <option key={department} value={department}>{department}</option>)}
           </select>
         </div>
 
@@ -453,43 +414,11 @@ export const LiveCityHeatmap: React.FC<LiveCityHeatmapProps> = ({
                 <Navigation className="w-4 h-4 text-cyan-400" />
                 <span>Ward Risk Index & Navigation</span>
               </h3>
-              <span className="text-[10px] text-slate-500 font-mono">12 WARDS</span>
+              <span className="text-[10px] text-slate-500 font-mono">LIVE RECORDS</span>
             </div>
 
             <div className="space-y-2 max-h-[510px] overflow-y-auto pr-1">
-              {INITIAL_WARDS.map((ward) => (
-                <div
-                  key={ward.id}
-                  onClick={() => handleCenterOnWard(ward)}
-                  className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
-                    selectedWard === ward.name
-                      ? 'bg-blue-600/20 border-cyan-400 shadow-md shadow-cyan-500/10'
-                      : 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-bold text-white">Ward {ward.number}: {ward.name}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Pop: {(ward.population / 1000).toFixed(1)}k • Councillor: {ward.councillor}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                      ward.riskScore > 70 ? 'bg-rose-500/20 text-rose-400' :
-                      ward.riskScore > 40 ? 'bg-amber-500/20 text-amber-400' :
-                      'bg-emerald-500/20 text-emerald-400'
-                    }`}>
-                      Risk: {ward.riskScore}%
-                    </span>
-                    <span className="block text-[10px] text-slate-500 mt-1">
-                      {ward.activeComplaints} Active
-                    </span>
-                  </div>
-                </div>
-              ))}
+              {filteredIncidents.length === 0 ? <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-xs text-slate-500">No incidents to display.</div> : <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-xs text-slate-400">{filteredIncidents.length} incident records match the current filters.</div>}
             </div>
           </div>
         </div>

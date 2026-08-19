@@ -50,7 +50,6 @@ export interface TranslationStrings {
   viewDetails: string;
   close: string;
   submitComplaint: string;
-  quickDemo: string;
   roleSwitcher: string;
 }
 
@@ -101,7 +100,6 @@ export const translations: Record<Language, TranslationStrings> = {
     viewDetails: 'View Telemetry Details',
     close: 'Close',
     submitComplaint: 'Submit Official Report',
-    quickDemo: 'Quick AI Demo',
     roleSwitcher: 'Switch Role'
   },
   hi: {
@@ -150,7 +148,6 @@ export const translations: Record<Language, TranslationStrings> = {
     viewDetails: 'विवरण देखें',
     close: 'बंद करें',
     submitComplaint: 'शिकायत दर्ज करें',
-    quickDemo: 'त्वरित एआई डेमो',
     roleSwitcher: 'रोल बदलें'
   }
 };
