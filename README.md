@@ -59,4 +59,25 @@ Authorization is based on Firebase ID-token claims, not local storage or client-
 
 ## Deployment
 
-Deploy the Node-compatible server with the built `dist` directory and the required environment variables. The server serves the built single-page application and exposes the Gemini API routes without placing the Gemini key in browser code.
+### Vercel
+
+Import the repository into Vercel and keep the project root at the repository root. The checked-in `vercel.json` builds the Vite client from `dist` and routes `/api/*` to the Express serverless function in `api/index.ts`.
+
+Add these variables in Vercel Project Settings -> Environment Variables for **Production**, **Preview**, and **Development** as appropriate:
+
+```text
+VITE_FIREBASE_API_KEY
+VITE_FIREBASE_AUTH_DOMAIN
+VITE_FIREBASE_PROJECT_ID
+VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_APP_ID
+GEMINI_API_KEY
+GEMINI_MODEL
+```
+
+The six `VITE_FIREBASE_*` values are required for the login and Firebase client to initialize. `GEMINI_API_KEY` is required for AI analysis, assistant chat, and predictive endpoints. Never commit these values; `.env.local` is only for local development.
+
+After adding or changing Vercel variables, trigger a new deployment. Existing deployments do not receive newly added environment variables automatically.
+
+The Vercel deployment serves the built SPA and exposes the Gemini API routes without placing the Gemini key in browser code. A Node-compatible deployment can still run the bundled `dist/server.cjs` using `npm start`.

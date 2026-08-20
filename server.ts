@@ -7,7 +7,7 @@ import { GoogleGenAI } from '@google/genai';
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 
-const app = express();
+export const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
@@ -181,7 +181,7 @@ Generate JSON with:
 });
 
 // Vite middleware for development & static serving for production
-async function startServer() {
+export async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -201,4 +201,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+export default app;
