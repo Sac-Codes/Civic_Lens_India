@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { missingFirebaseConfigKeys } from '../services/firebase/config';
+import { firebaseDiagnostics, missingFirebaseConfigKeys } from '../services/firebase/config';
 import { getAuthErrorMessage } from '../services/firebase/auth';
 import App from '../App';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
@@ -147,18 +147,22 @@ function ConfigurationRequired() {
           The application cannot connect to its backend services.
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-400">
-          Please configure the required Firebase environment variables and redeploy.
+          Please configure the required Firebase environment variables in your deployment environment (Vercel Project Settings) and trigger a new deployment.
         </p>
-        {import.meta.env.DEV && missingFirebaseConfigKeys.length > 0 && (
-          <div className="mt-6 text-left rounded-lg border border-slate-800 bg-slate-950 p-4">
-            <p className="text-xs font-semibold text-slate-300">Missing environment variables in local configuration:</p>
-            <ul className="mt-2 space-y-1 font-mono text-xs text-rose-400">
-              {missingFirebaseConfigKeys.map((key) => (
-                <li key={key}>- {key}</li>
-              ))}
-            </ul>
+        
+        <div className="mt-6 text-left rounded-lg border border-slate-800 bg-slate-950 p-4">
+          <p className="text-xs font-semibold text-slate-300">Firebase Environment Variable Diagnostics:</p>
+          <div className="mt-3 space-y-1.5 font-mono text-xs">
+            {firebaseDiagnostics.map((item) => (
+              <div key={item.name} className="flex items-center justify-between py-1 border-b border-slate-900 last:border-0">
+                <span className="text-slate-400">{item.name}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.status === 'PRESENT' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                  {item.status}
+                </span>
+              </div>
+            ))}
           </div>
-        )}
+        </div>
       </section>
     </main>
   );

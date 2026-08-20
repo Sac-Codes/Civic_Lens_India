@@ -16,7 +16,23 @@ const requiredKeys: (keyof typeof rawConfig)[] = [
   'apiKey',
   'authDomain',
   'projectId',
+  'storageBucket',
+  'messagingSenderId',
   'appId',
+];
+
+export interface FirebaseEnvDiagnostic {
+  name: string;
+  status: 'PRESENT' | 'MISSING';
+}
+
+export const firebaseDiagnostics: FirebaseEnvDiagnostic[] = [
+  { name: 'VITE_FIREBASE_API_KEY', status: rawConfig.apiKey ? 'PRESENT' : 'MISSING' },
+  { name: 'VITE_FIREBASE_AUTH_DOMAIN', status: rawConfig.authDomain ? 'PRESENT' : 'MISSING' },
+  { name: 'VITE_FIREBASE_PROJECT_ID', status: rawConfig.projectId ? 'PRESENT' : 'MISSING' },
+  { name: 'VITE_FIREBASE_STORAGE_BUCKET', status: rawConfig.storageBucket ? 'PRESENT' : 'MISSING' },
+  { name: 'VITE_FIREBASE_MESSAGING_SENDER_ID', status: rawConfig.messagingSenderId ? 'PRESENT' : 'MISSING' },
+  { name: 'VITE_FIREBASE_APP_ID', status: rawConfig.appId ? 'PRESENT' : 'MISSING' },
 ];
 
 export const missingFirebaseConfigKeys = requiredKeys
