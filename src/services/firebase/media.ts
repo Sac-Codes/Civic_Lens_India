@@ -12,9 +12,16 @@ export async function uploadIncidentImage(incidentId: string, dataUrl: string, o
   const ext = mimeType.split('/')[1] || 'jpg';
   const imageRef = ref(storage, `incidents/${incidentId}/evidence/report-${Date.now()}.${ext}`);
 
-  await uploadString(imageRef, dataUrl, 'data_url', {
+  // 4-second timeout to prevent UI hang if Cloud Storage bucket is not enabled/initialized
+  const uploadPromise = uploadString(imageRef, dataUrl, 'data_url', {
     contentType: mimeType,
     customMetadata: { ownerId },
-  });
-  return getDownloadURL(imageRef);
+  }).then(() => getDownloadURL(imageRef));
+
+  const timeoutPromise = new Promise<string>((_, reject) =>
+    setTimeout(() => reject(new Error('Storage upload timeout')), 4000)
+  );
+
+  return Promise.race([uploadPromise, timeoutPromise]);
 }
+

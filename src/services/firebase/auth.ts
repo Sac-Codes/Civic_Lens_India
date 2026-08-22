@@ -72,12 +72,13 @@ export async function fetchUserProfile(user: User): Promise<AuthProfile> {
   const data = snapshot.data();
 
   const claimRole = token.claims.admin === true ? 'admin' : token.claims.role;
+  const effectiveRole = claimRole || data?.role;
   const role = (
-    claimRole === 'admin' ||
-    claimRole === 'department_head' ||
-    claimRole === 'officer' ||
-    claimRole === 'citizen'
-      ? claimRole
+    effectiveRole === 'admin' ||
+    effectiveRole === 'department_head' ||
+    effectiveRole === 'officer' ||
+    effectiveRole === 'citizen'
+      ? effectiveRole
       : 'citizen'
   ) as UserRole;
 
