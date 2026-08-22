@@ -20,7 +20,7 @@ import { Incident } from '../types';
 import { runVisionScan, VisionScanResult } from '../services/aiService';
 import { findPotentialDuplicate } from '../services/storageService';
 import { uploadIncidentImage } from '../services/firebase/media';
-import { saveIncidentForUser } from '../services/firebase/incidents';
+import { createIncident } from '../services/firebase/incidents';
 
 interface ReportIncidentModalProps {
   isOpen: boolean;
@@ -147,11 +147,12 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         try {
           storedImageUrl = await uploadIncidentImage(incidentId, imageUrl, reporter.id);
         } catch (uploadErr) {
-          console.warn('Storage upload fallback to data url:', uploadErr);
+          console.warn('Storage upload notice, keeping base64:', uploadErr);
         }
       }
 
-      const newInc: Incident = {
+      // Build the incident payload
+      const incidentPayload: Partial<Incident> = {
         id: incidentId,
         title: title.trim() || `${category} - ${address.trim()}`,
         description: description.trim() || `Reported civic hazard at ${address.trim()}.`,
@@ -175,10 +176,8 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         recommendedMaterials: aiScanResult?.recommendedMaterials || [],
         safetyRiskLevel: aiScanResult?.safetyRiskLevel || 'Standard',
         aiSummary: aiScanResult?.summary || (aiError ? 'Manual citizen submission' : 'Awaiting triage'),
-        citizenId: reporter.id,
         citizenName,
         createdAt: now,
-        updatedAt: now,
         duplicateCount: 1,
         timeline: [
           {
@@ -201,12 +200,24 @@ export const ReportIncidentModal: React.FC<ReportIncidentModalProps> = ({
         ]
       };
 
-      await saveIncidentForUser(newInc, reporter.id);
+      // Firestore write MUST complete before showing success
+      const persistedId = await createIncident(incidentPayload, reporter.id);
+
+      // Build the full Incident object for the callback (using the confirmed persisted ID)
+      const newInc: Incident = {
+        ...incidentPayload as Incident,
+        id: persistedId,
+        reportedBy: reporter.id,
+        citizenId: reporter.id,
+        updatedAt: now,
+      };
+
       setIsSubmitting(false);
       onIncidentCreated(newInc);
       onClose();
     } catch (error: unknown) {
-      setSubmitError(error instanceof Error ? error.message : 'We could not save this report. Please check your connection.');
+      console.error('Firestore incident creation error:', error);
+      setSubmitError(error instanceof Error ? error.message : 'We could not save this report. Please check your connection and try again.');
       setIsSubmitting(false);
     }
   };

@@ -5,13 +5,6 @@ service firebase.storage {
     function isAdmin() { return signedIn() && (request.auth.token.admin == true || request.auth.token.role == 'admin'); }
     function hasRole(role) { return signedIn() && request.auth.token.role == role; }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
-    function canReadIncident(incidentId) {
-      let incident = firestore.get(/databases/(default)/documents/incidents/$(incidentId)).data;
-      return isAdmin()
-        || incident.reportedBy == request.auth.uid
-        || (hasRole('officer') && incident.assignedOfficerId == request.auth.uid)
-        || (hasRole('department_head') && incident.department == request.auth.token.department);
-    }
 
     match /users/{uid}/profile/{fileName} {
       allow read: if owns(uid) || isAdmin();
@@ -21,7 +14,7 @@ service firebase.storage {
     }
 
     match /incidents/{incidentId}/{folder}/{fileName} {
-      allow read: if canReadIncident(incidentId);
+      allow read: if signedIn();
       allow write: if signedIn()
         && request.resource.metadata.ownerId == request.auth.uid
         && request.resource.size < 10 * 1024 * 1024

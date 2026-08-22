@@ -8,7 +8,13 @@ function requireStorage() {
 
 export async function uploadIncidentImage(incidentId: string, dataUrl: string, ownerId: string): Promise<string> {
   const storage = requireStorage();
-  const imageRef = ref(storage, `incidents/${incidentId}/evidence/report-${Date.now()}`);
-  await uploadString(imageRef, dataUrl, 'data_url', { customMetadata: { ownerId } });
+  const mimeType = dataUrl.match(/^data:([^;]+);/)?.[1] || 'image/jpeg';
+  const ext = mimeType.split('/')[1] || 'jpg';
+  const imageRef = ref(storage, `incidents/${incidentId}/evidence/report-${Date.now()}.${ext}`);
+
+  await uploadString(imageRef, dataUrl, 'data_url', {
+    contentType: mimeType,
+    customMetadata: { ownerId },
+  });
   return getDownloadURL(imageRef);
 }

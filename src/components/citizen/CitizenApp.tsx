@@ -61,8 +61,11 @@ export const CitizenApp: React.FC<CitizenAppProps> = ({ user, onLogout }) => {
 
   const unreadCount = notifications.filter((n) => !n.isRead && !n.read).length;
 
-  const handleIncidentCreated = (newInc: Incident) => {
-    setIncidents((prev) => [newInc, ...prev.filter((i) => i.id !== newInc.id)]);
+  const handleIncidentCreated = (_newInc: Incident) => {
+    // Firestore write is already complete before this callback fires.
+    // The onSnapshot subscription will automatically deliver the new document.
+    // Navigate to the reports list so the citizen sees it immediately.
+    navigate('/citizen/reports');
   };
 
   const navLinks = [

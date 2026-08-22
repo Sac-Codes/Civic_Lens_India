@@ -19,7 +19,7 @@ import { NotificationsDrawer } from './components/NotificationsDrawer';
 import { Incident, UserRole, CityAnalytics, ActivityNotification, CitizenProfile } from './types';
 import { Language } from './data/translations';
 import { Sparkles } from 'lucide-react';
-import { subscribeToIncidents, saveIncidentForUser, updateIncident } from './services/firebase/incidents';
+import { subscribeToIncidents, createIncident, updateIncident } from './services/firebase/incidents';
 import { deleteNotification, markNotificationRead, saveNotification, subscribeToUserNotifications } from './services/firebase/notifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -120,14 +120,14 @@ export function App({ authenticatedUser, onLogout }: AppProps) {
 
   // Incident Handlers
   const handleIncidentCreated = (newInc: Incident) => {
-    if (authenticatedUser) {
-      void saveIncidentForUser(newInc, authenticatedUser.uid).catch((error: unknown) => {
-        console.error('Failed to save incident to Firestore', error);
-      });
-    }
-    setIncidents((prev) => [newInc, ...prev]);
+    // Firestore write is already committed by the modal/flow before this callback fires.
+    // Only update local state optimistically; the Firestore onSnapshot will reconcile.
+    setIncidents((prev) => {
+      const exists = prev.some((i) => i.id === newInc.id);
+      return exists ? prev.map((i) => i.id === newInc.id ? newInc : i) : [newInc, ...prev];
+    });
 
-    // Add activity notification
+    // Add activity notification (also written to Firestore inside ReportIssueFlow)
     const newNotif: ActivityNotification = {
       id: `notif-${Date.now()}`,
       title: `New Incident Logged: ${newInc.id}`,
@@ -141,7 +141,6 @@ export function App({ authenticatedUser, onLogout }: AppProps) {
     void saveNotification(newNotif, authenticatedUser.uid).catch((error: unknown) => {
       console.error('Failed to save notification', error);
     });
-
   };
 
   const handleUpdateIncident = (updated: Incident) => {
@@ -170,7 +169,7 @@ export function App({ authenticatedUser, onLogout }: AppProps) {
   const handleImportIncidents = (importedList: Incident[]) => {
     setIncidents((prev) => [...importedList, ...prev]);
     importedList.forEach((incident) => {
-      void saveIncidentForUser(incident, authenticatedUser.uid).catch((error: unknown) => {
+      void createIncident(incident, authenticatedUser.uid).catch((error: unknown) => {
         console.error('Failed to import incident into Firestore', error);
       });
     });

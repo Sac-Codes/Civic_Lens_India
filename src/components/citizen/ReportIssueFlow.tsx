@@ -18,9 +18,8 @@ import { useNavigate } from 'react-router-dom';
 import { Incident } from '../../types';
 import { runVisionScan, VisionScanResult } from '../../services/aiService';
 import { uploadIncidentImage } from '../../services/firebase/media';
-import { saveIncidentForUser } from '../../services/firebase/incidents';
+import { createIncident } from '../../services/firebase/incidents';
 import { saveNotification } from '../../services/firebase/notifications';
-import { findPotentialDuplicate } from '../../services/storageService';
 
 type FlowState = 
   | 'EMPTY'
@@ -61,6 +60,32 @@ const DEPARTMENTS = [
   'General Civic Administration'
 ];
 
+// Helper to optimize/compress image dataURL client-side
+async function optimizeImageDataUrl(dataUrl: string, maxWidth = 1200, quality = 0.85): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } else {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
   user,
   existingIncidents,
@@ -75,7 +100,6 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
   // Image data
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
-  const [uploadedStorageUrl, setUploadedStorageUrl] = useState<string>('');
 
   // AI Analysis state
   const [aiResult, setAiResult] = useState<VisionScanResult | null>(null);
@@ -90,14 +114,14 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
   const [address, setAddress] = useState('');
   const [ward, setWard] = useState('');
   const [description, setDescription] = useState('');
-  const [latitude, setLatitude] = useState<number>(12.9716); // Default geographic coordinates
+  const [latitude, setLatitude] = useState<number>(12.9716);
   const [longitude, setLongitude] = useState<number>(77.5946);
   
   // Submission Output
   const [createdIncidentId, setCreatedIncidentId] = useState<string>('');
   const [submitError, setSubmitError] = useState<string>('');
 
-  // Format file size
+  // Format file size helper
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -116,8 +140,8 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setSubmitError('The selected image is larger than 10MB. Please choose a smaller photo.');
+    if (file.size > 15 * 1024 * 1024) {
+      setSubmitError('The selected image is larger than 15MB. Please choose a smaller photo.');
       return;
     }
 
@@ -127,9 +151,11 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
     setAiResult(null);
 
     const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setImagePreviewUrl(base64);
+    reader.onload = async () => {
+      const rawBase64 = reader.result as string;
+      // Optimize image for fast upload and preview
+      const optimized = await optimizeImageDataUrl(rawBase64);
+      setImagePreviewUrl(optimized);
       setFlowState('IMAGE_SELECTED');
     };
     reader.readAsDataURL(file);
@@ -145,18 +171,18 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
     try {
       const result = await runVisionScan(imagePreviewUrl, category, description);
       setAiResult(result);
-      setCategory(result.category || category);
+      if (result.category) setCategory(result.category);
       if (result.department) setDepartment(result.department);
       if (result.severityLevel) setSeverity(result.severityLevel);
       if (typeof result.severityScore === 'number') setSeverityScore(result.severityScore);
       if (!title && result.summary) {
-        setTitle(`${result.category} issue reported`);
+        setTitle(`${result.category} reported`);
       }
       setFlowState('ANALYZED');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'AI analysis is currently unavailable.';
       setAiError(msg);
-      // Move to analyzed state with manual review path so citizen can proceed
+      // Move to analyzed state so citizen can continue with manual review
       setFlowState('ANALYZED');
     }
   };
@@ -165,7 +191,6 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
   const handleRemoveImage = () => {
     setSelectedFile(null);
     setImagePreviewUrl('');
-    setUploadedStorageUrl('');
     setAiResult(null);
     setAiError('');
     setFlowState('EMPTY');
@@ -184,18 +209,24 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
           }
         },
         (err) => {
-          console.warn('Geolocation failed:', err.message);
+          console.warn('Geolocation lookup notice:', err.message);
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     }
   };
 
-  // Submit Incident
+  // Step 3: Real Firestore Report Submission
   const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user?.uid) {
+      setSubmitError('Your session has expired. Please sign in again before submitting a report.');
+      return;
+    }
+
     if (!address.trim()) {
-      setSubmitError('Please provide a street address or location for the issue.');
+      setSubmitError('Please provide a street address or landmark for this civic issue.');
       return;
     }
 
@@ -204,96 +235,93 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
 
     try {
       const now = new Date().toISOString();
-      const incidentId = `INC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
+      const generatedId = `INC-${new Date().getFullYear()}-${Math.floor(10000 + Math.random() * 90000)}`;
 
-      // Upload image to Firebase Storage if available, else keep preview URL
+      // Upload image to Firebase Storage if available
       let finalImageUrl = imagePreviewUrl;
       if (imagePreviewUrl.startsWith('data:image/')) {
         try {
-          finalImageUrl = await uploadIncidentImage(incidentId, imagePreviewUrl, user.uid);
+          finalImageUrl = await uploadIncidentImage(generatedId, imagePreviewUrl, user.uid);
         } catch (uploadErr) {
-          console.warn('Firebase storage upload fallback to base64 preview:', uploadErr);
-          // Keep base64 preview as fallback
+          console.warn('Firebase Storage upload notice, scaling fallback data URL:', uploadErr);
+          // If storage is offline/unconfigured, scale down to fit in Firestore safely
+          finalImageUrl = await optimizeImageDataUrl(imagePreviewUrl, 600, 0.6);
         }
       }
 
-      const newIncident: Incident = {
-        id: incidentId,
-        title: title.trim() || `${category} - ${address.trim()}`,
-        description: description.trim() || `Citizen report for ${category} at ${address.trim()}.`,
-        category,
-        department,
-        severity,
-        severityScore: aiResult ? aiResult.severityScore : severityScore,
-        priority: aiResult ? aiResult.priorityLevel : severity === 'Critical' ? 'Immediate Action' : severity === 'High' ? 'High' : 'Normal',
-        priorityScore: aiResult ? aiResult.priorityScore : severityScore,
-        status: 'Pending',
-        latitude,
-        longitude,
-        address: address.trim(),
-        ward: ward.trim() || 'Central Ward',
-        area: ward.trim() ? `${ward.trim()} Sector` : 'Civic Sector',
-        imageUrl: finalImageUrl,
-        aiConfidence: aiResult?.detectedObjects?.[0]?.confidence ?? 0,
-        detectedObjects: aiResult?.detectedObjects ?? [],
-        estimatedCost: aiResult?.estimatedCost ?? 'To be assessed by department',
-        estimatedResolutionTime: aiResult?.estimatedResolutionTime ?? 'Standard SLA (24-72 hrs)',
-        recommendedMaterials: aiResult?.recommendedMaterials ?? [],
-        safetyRiskLevel: aiResult?.safetyRiskLevel ?? (severity === 'Critical' ? 'High Hazard' : 'Standard'),
-        aiSummary: aiResult?.summary ?? (aiError ? 'Manual citizen submission' : 'Awaiting inspection'),
-        citizenId: user.uid,
-        citizenName: user.name,
-        createdAt: now,
-        updatedAt: now,
-        duplicateCount: 1,
-        timeline: [
-          {
-            id: `t-${Date.now()}`,
-            timestamp: now,
-            title: 'Report Submitted',
-            description: `Citizen ${user.name} submitted this civic issue report.`,
-            actor: user.name,
-            role: 'Citizen',
-            statusChangedTo: 'Pending'
-          },
-          ...(aiResult ? [{
-            id: `t-ai-${Date.now() + 1}`,
-            timestamp: now,
-            title: 'AI Analysis Completed',
-            description: `AI triage identified category as "${category}" with ${severity} severity. Routed to ${department}.`,
-            actor: 'CivicLens AI',
-            role: 'AI System'
-          }] : [])
-        ]
-      };
+      // Build and persist Firestore incident document
+      const createdId = await createIncident(
+        {
+          id: generatedId,
+          title: title.trim() || `${category} - ${address.trim()}`,
+          description: description.trim() || `Citizen report for ${category} at ${address.trim()}.`,
+          category,
+          department,
+          severity,
+          severityScore: aiResult ? aiResult.severityScore : severityScore,
+          priority: aiResult ? aiResult.priorityLevel : severity === 'Critical' ? 'Immediate Action' : severity === 'High' ? 'High' : 'Normal',
+          priorityScore: aiResult ? aiResult.priorityScore : severityScore,
+          status: 'Pending',
+          latitude,
+          longitude,
+          address: address.trim(),
+          ward: ward.trim() || 'Central Ward',
+          area: ward.trim() ? `${ward.trim()} Sector` : 'Civic Sector',
+          imageUrl: finalImageUrl,
+          aiConfidence: aiResult?.detectedObjects?.[0]?.confidence ?? 0,
+          detectedObjects: aiResult?.detectedObjects ?? [],
+          estimatedCost: aiResult?.estimatedCost ?? 'To be assessed by department',
+          estimatedResolutionTime: aiResult?.estimatedResolutionTime ?? 'Standard SLA (24-72 hrs)',
+          recommendedMaterials: aiResult?.recommendedMaterials ?? [],
+          safetyRiskLevel: aiResult?.safetyRiskLevel ?? (severity === 'Critical' ? 'High Hazard' : 'Standard'),
+          aiSummary: aiResult?.summary ?? (aiError ? 'Manual citizen submission' : 'Awaiting inspection'),
+          citizenName: user.name,
+          timeline: [
+            {
+              id: `t-${Date.now()}`,
+              timestamp: now,
+              title: 'Report Submitted',
+              description: `Citizen ${user.name} submitted this civic issue report.`,
+              actor: user.name,
+              role: 'Citizen',
+              statusChangedTo: 'Pending'
+            },
+            ...(aiResult ? [{
+              id: `t-ai-${Date.now() + 1}`,
+              timestamp: now,
+              title: 'AI Analysis Completed',
+              description: `AI triage identified category as "${category}" with ${severity} severity. Routed to ${department}.`,
+              actor: 'CivicLens AI',
+              role: 'AI System'
+            }] : [])
+          ]
+        },
+        user.uid
+      );
 
-      await saveIncidentForUser(newIncident, user.uid);
-
-      // Create confirmation notification for the citizen
+      // Create confirmation notification in Firestore
       const notif = {
         id: `notif-${Date.now()}`,
-        title: `Report Logged: ${incidentId}`,
+        title: `Report Logged: ${createdId}`,
         message: `Your report for "${category}" has been received and routed to ${department}.`,
         timestamp: now,
         type: 'info' as const,
         isRead: false,
-        incidentId: incidentId
+        incidentId: createdId
       };
-      await saveNotification(notif, user.uid).catch((nErr) => console.warn('Notification save error:', nErr));
+      await saveNotification(notif, user.uid).catch((nErr) => console.warn('Notification notice:', nErr));
 
-      if (onIncidentCreated) {
-        onIncidentCreated(newIncident);
-      }
-
-      setCreatedIncidentId(incidentId);
+      // Successfully confirmed in Firestore
+      setCreatedIncidentId(createdId);
       setFlowState('SUBMITTED');
     } catch (err: unknown) {
-      setSubmitError(err instanceof Error ? err.message : 'We could not submit your report. Please check your connection and try again.');
+      console.error('Firestore incident submission error:', err);
+      setSubmitError(err instanceof Error ? err.message : 'Failed to save report to Firestore. Please check your connection and try again.');
       setFlowState('ANALYZED');
     }
   };
 
-  // SUCCESS VIEW (SUBMITTED)
+  // SUCCESS VIEW (ONLY APPEARS AFTER FIRESTORE CONFIRMS WRITE)
   if (flowState === 'SUBMITTED') {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4">
@@ -304,13 +332,13 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
 
           <div>
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400">
-              Submission Confirmed
+              Firestore Verified
             </span>
             <h2 className="text-2xl font-bold text-white mt-1">
               Report Submitted Successfully
             </h2>
             <p className="text-sm text-slate-300 mt-2 max-w-md mx-auto">
-              Your report has been logged and assigned to the relevant department for inspection.
+              Your report is now live in the municipal database and has been queued for department dispatch.
             </p>
           </div>
 
@@ -417,7 +445,7 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
                   Click to select or capture a photo
                 </p>
                 <p className="text-xs text-slate-400 mt-1">
-                  Supports JPG, PNG, or WebP up to 10MB
+                  Supports JPG, PNG, or WebP up to 15MB
                 </p>
               </div>
               <input
@@ -660,15 +688,16 @@ export const ReportIssueFlow: React.FC<ReportIssueFlowProps> = ({
 
           {/* Submit Actions */}
           {submitError && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-              {submitError}
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{submitError}</span>
             </div>
           )}
 
           <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-[11px] text-slate-400 flex items-center space-x-1.5">
               <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Report will be logged under your verified citizen account.</span>
+              <span>Report will be securely recorded in Firestore under account {user.email}.</span>
             </p>
 
             <div className="flex items-center space-x-3 w-full sm:w-auto">

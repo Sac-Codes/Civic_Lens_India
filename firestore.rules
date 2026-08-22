@@ -15,9 +15,13 @@ service cloud.firestore {
     }
 
     match /incidents/{incidentId} {
-      allow create: if signedIn() && request.resource.data.reportedBy == request.auth.uid;
+      allow create: if signedIn() && (
+        request.resource.data.reportedBy == request.auth.uid ||
+        request.resource.data.citizenId == request.auth.uid
+      );
       allow read: if signedIn() && (
         resource.data.reportedBy == request.auth.uid ||
+        resource.data.citizenId == request.auth.uid ||
         isAdmin() ||
         (hasRole('officer') && resource.data.assignedOfficerId == request.auth.uid) ||
         (isDepartmentHead() && resource.data.department == request.auth.token.department)
@@ -25,7 +29,7 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         (hasRole('officer') && resource.data.assignedOfficerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt', 'resolutionNotes', 'repairImageUrl', 'updatedAt', 'timeline'])) ||
         (isDepartmentHead() && resource.data.department == request.auth.token.department && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'assignedOfficerId', 'assignedOfficerName', 'assignedOfficerPhone', 'updatedAt', 'timeline', 'priority', 'department'])) ||
-        (resource.data.reportedBy == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['citizenFeedback', 'citizenSatisfactionRating', 'duplicateCount', 'duplicateIncidentIds', 'updatedAt', 'timeline']));
+        ((resource.data.reportedBy == request.auth.uid || resource.data.citizenId == request.auth.uid) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['citizenFeedback', 'citizenSatisfactionRating', 'duplicateCount', 'duplicateIncidentIds', 'updatedAt', 'timeline', 'status', 'resolutionNotes', 'resolvedAt']));
       allow delete: if isAdmin();
     }
 
